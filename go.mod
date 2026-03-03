@@ -2,6 +2,8 @@ module github.com/masterfabric/masterfabric_go_basic
 
 go 1.25
 
+toolchain go1.25.7
+
 require (
 	github.com/99designs/gqlgen v0.17.54
 	github.com/go-chi/chi/v5 v5.1.0
