@@ -1,0 +1,21 @@
+package repository
+
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"github.com/masterfabric/masterfabric_go_basic/internal/domain/iam/model"
+)
+
+// UserRepository defines persistence operations for User entities.
+// Infrastructure must implement this interface; domain does not depend on infrastructure.
+type UserRepository interface {
+	Create(ctx context.Context, user *model.User) error
+	FindByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+	FindByEmail(ctx context.Context, email string) (*model.User, error)
+	Update(ctx context.Context, user *model.User) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	// Admin operations
+	List(ctx context.Context, limit, offset int) ([]*model.User, error)
+	CountAll(ctx context.Context) (int, error)
+}

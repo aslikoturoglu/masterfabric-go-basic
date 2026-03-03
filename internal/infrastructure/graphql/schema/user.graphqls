@@ -1,0 +1,48 @@
+# user.graphqls — User profile queries and mutations
+
+extend type Query {
+  """Return the profile of the currently authenticated user."""
+  me: UserProfile!
+}
+
+extend type Mutation {
+  """Update the authenticated user's profile fields."""
+  updateProfile(input: UpdateProfileInput!): UserProfile!
+
+  """Permanently delete the authenticated user's account."""
+  deleteAccount: Boolean!
+}
+
+# ── Inputs ──────────────────────────────────────────────────────────────────
+
+input UpdateProfileInput {
+  displayName: String
+  avatarURL:   String
+  bio:         String
+}
+
+# ── Response types ───────────────────────────────────────────────────────────
+
+type UserProfile {
+  id:          UUID!
+  email:       String!
+  displayName: String!
+  avatarURL:   String!
+  bio:         String!
+  status:      UserStatus!
+  role:        UserRole!
+  createdAt:   Time!
+  updatedAt:   Time!
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  USER
+}
