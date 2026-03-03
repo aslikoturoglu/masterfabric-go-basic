@@ -2,23 +2,19 @@
 # https://render.com/docs/infrastructure-as-code
 #
 # Services declared here:
-#   - masterfabric-api   Web Service (Docker)
+#   - masterfabric-api   Web Service (native Go build)
 #   - masterfabric-db    PostgreSQL 16
 #   - masterfabric-redis Redis 7
 
 services:
   - type: web
     name: masterfabric-api
-    runtime: docker
-    # Dockerfile lives in deployments/ but needs the project root as build context
-    # so that `COPY . .` inside the Dockerfile can access all Go source files.
-    dockerfilePath: deployments/Dockerfile
-    dockerContext: .
-    # Render routes external traffic to this port; must match SERVER_PORT below.
-    port: 10000
+    runtime: go
+    buildCommand: CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/server ./cmd/server
+    startCommand: ./bin/server
     healthCheckPath: /health
     envVars:
-      # Bind to Render's assigned port
+      # Render assigns port 10000 for web services; must match SERVER_PORT
       - key: SERVER_PORT
         value: "10000"
 
@@ -53,6 +49,10 @@ services:
 
       - key: LOG_LEVEL
         value: info
+
+      # Use the bundled Go toolchain — prevents auto-download in sandboxed environments
+      - key: GOTOOLCHAIN
+        value: local
 
 databases:
   # Render-managed PostgreSQL 16
