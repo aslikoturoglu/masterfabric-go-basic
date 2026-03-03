@@ -1,4 +1,4 @@
-.PHONY: all build run generate generate-dart tidy lint test docker-up docker-down clean help
+.PHONY: all build run generate generate-dart generate-swift generate-all tidy lint test docker-up docker-down clean help
 
 ## ── Variables ─────────────────────────────────────────────────────────────────
 BINARY      := bin/server
@@ -38,6 +38,14 @@ generate:
 generate-dart: build-cli
 	@echo "==> Generating Dart SDK package"
 	@$(CLI_BINARY) generate dart
+
+## generate-swift: generate the sdk/swift_go_api Swift/iOS package from GraphQL schema
+generate-swift: build-cli
+	@echo "==> Generating Swift SDK package"
+	@$(CLI_BINARY) generate swift
+
+## generate-all: generate both Dart and Swift SDK packages
+generate-all: generate-dart generate-swift
 
 ## tidy: tidy go modules
 tidy:

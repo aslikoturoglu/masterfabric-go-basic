@@ -6,6 +6,7 @@
 - **Auth** (register, login, refresh token, logout)
 - **User** (profile CRUD)
 - **Settings** (app/user settings)
+- **Admin** (user management, role changes, suspend/reactivate — requires ADMIN role)
 
 Exposed via **GraphQL** (gqlgen). No REST API.
 
@@ -71,6 +72,11 @@ internal/
       queries.go                                # Dart gql() DocumentNode generators
       client.go                                 # Dart typed client generator
       pubspec.go                                # pubspec.yaml + barrel export generator
+    swift/
+      generator.go                              # Swift package orchestrator
+      models.go                                 # Swift Codable structs, enums, inputs + Package.swift
+      queries.go                                # Swift GraphQL operation string constants (MasterFabricDocuments)
+      client.go                                 # Swift async/await URLSession typed client
   shared/
     config/                                     # Viper/env config
     logger/                                     # slog structured logger
@@ -92,6 +98,13 @@ sdk/
         models/                                 # enums.dart, inputs.dart, models.dart
         queries/                                # documents.dart (gql DocumentNodes)
         client/                                 # masterfabric_client.dart
+  swift_go_api/                                 # GENERATED — do not edit by hand
+    Package.swift                               # SPM manifest (Apollo iOS dep)
+    Sources/
+      MasterFabricAPI/
+        Models/                                 # Enums.swift, Inputs.swift, Models.swift
+        Queries/                                # Documents.swift (MasterFabricDocuments enum)
+        Client/                                 # MasterFabricClient.swift (async/await URLSession)
 ```
 
 ## Key Conventions
@@ -144,11 +157,11 @@ GraphQL Resolvers → Application → Domain ← Infrastructure
 6. Add GraphQL schema in `internal/infrastructure/graphql/schema/<context>.graphqls`
 7. Wire resolver in `internal/infrastructure/graphql/resolver/`
 8. Wire dependencies in `cmd/server/main.go`
-9. **Re-generate the SDK** — run `make generate-dart` so the Dart package stays in sync
+    9. **Re-generate the SDKs** — run `make generate-all` so both Dart and Swift packages stay in sync
 
 ### SDK Code Generation Rule
-> **Every time a `.graphqls` schema file is added or changed, `make generate-dart` must be run.**
-> The generated output in `sdk/dart_go_api/` is never edited by hand.
+> **Every time a `.graphqls` schema file is added or changed, `make generate-all` must be run.**
+> The generated output in `sdk/dart_go_api/` and `sdk/swift_go_api/` is never edited by hand.
 
 The generation pipeline:
 ```
@@ -156,17 +169,19 @@ internal/infrastructure/graphql/schema/*.graphqls
         │
         ▼  internal/codegen/parser  (schema_parser.go)
         │
-        ▼  internal/codegen/dart    (generator.go, models.go, queries.go, client.go, pubspec.go)
+        ├──▶  internal/codegen/dart   → sdk/dart_go_api/
+        │     (generator.go, models.go, queries.go, client.go, pubspec.go)
         │
-        ▼  sdk/dart_go_api/
+        └──▶  internal/codegen/swift  → sdk/swift_go_api/
+              (generator.go, models.go, queries.go, client.go)
 ```
 
-### Adding a New SDK Target (e.g. Swift — phase-2)
-1. Create `internal/codegen/swift/` package mirroring the `dart/` package structure
+### Adding a New SDK Target
+1. Create `internal/codegen/<target>/` package mirroring the existing package structure
 2. Implement `Generate(schemaDir, outputDir string) error` as the entry point
 3. Register the command in `cmd/masterfabric_go/main.go`
-4. Add `make generate-swift` target in `Makefile`
-5. Output goes to `sdk/swift_go_api/`
+4. Add `make generate-<target>` target in `Makefile`
+5. Output goes to `sdk/<target>_go_api/`
 
 ## Build Commands
 
@@ -181,8 +196,12 @@ go vet ./...
 go build -o bin/masterfabric_go ./cmd/masterfabric_go
 ./bin/masterfabric_go generate dart
 ./bin/masterfabric_go generate dart --schema internal/infrastructure/graphql/schema --output sdk/dart_go_api
+./bin/masterfabric_go generate swift
+./bin/masterfabric_go generate swift --schema internal/infrastructure/graphql/schema --output sdk/swift_go_api
 
 # Via Makefile
-make build-cli        # compile bin/masterfabric_go
-make generate-dart    # build CLI + regenerate sdk/dart_go_api
+make build-cli          # compile bin/masterfabric_go
+make generate-dart      # build CLI + regenerate sdk/dart_go_api
+make generate-swift     # build CLI + regenerate sdk/swift_go_api
+make generate-all       # build CLI + regenerate both SDKs
 ```

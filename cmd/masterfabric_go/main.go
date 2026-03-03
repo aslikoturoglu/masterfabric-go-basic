@@ -3,7 +3,7 @@
 // Usage:
 //
 //	masterfabric_go generate dart   — generate sdk/dart_go_api Dart package
-//	masterfabric_go generate swift  — (phase-2) generate sdk/swift_go_api Swift package
+//	masterfabric_go generate swift  — generate sdk/swift_go_api Swift package
 package main
 
 import (
@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/masterfabric/masterfabric_go_basic/internal/codegen/dart"
+	"github.com/masterfabric/masterfabric_go_basic/internal/codegen/swift"
 	"github.com/spf13/cobra"
 )
 
@@ -60,14 +61,36 @@ Generated package includes:
 	dartCmd.Flags().StringVar(&schemaDir, "schema", "internal/infrastructure/graphql/schema", "Directory containing *.graphqls files")
 	dartCmd.Flags().StringVar(&outputDir, "output", "sdk/dart_go_api", "Output directory for the generated Dart package")
 
-	// ── Phase 2: Swift (stub) ─────────────────────────────────────────────────
+	// ── Phase 2: Swift ────────────────────────────────────────────────────────
+	var (
+		swiftSchemaDir string
+		swiftOutputDir string
+	)
+
 	swiftCmd := &cobra.Command{
 		Use:   "swift",
-		Short: "Generate a Swift GraphQL client package (sdk/swift_go_api) [phase-2, not yet implemented]",
+		Short: "Generate a Swift/iOS GraphQL client package (sdk/swift_go_api)",
+		Long: `Reads all *.graphqls files from the schema directory and emits a complete
+Swift Package Manager package under sdk/swift_go_api ready to be added to any
+iOS/macOS Xcode project via File > Add Package Dependencies.
+
+Generated package includes:
+  • Package.swift                   — SPM manifest (Apollo iOS dependency)
+  • Sources/MasterFabricAPI/Models/ — Codable structs, enums, input types
+  • Sources/MasterFabricAPI/Queries/ — GraphQL operation string constants
+  • Sources/MasterFabricAPI/Client/ — typed async/await API client`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("Swift generation is planned for phase-2 and is not yet implemented")
+			fmt.Println("masterfabric_go: generating Swift package...")
+			if err := swift.Generate(swiftSchemaDir, swiftOutputDir); err != nil {
+				return fmt.Errorf("swift generation failed: %w", err)
+			}
+			fmt.Printf("masterfabric_go: Swift package written to %s\n", swiftOutputDir)
+			return nil
 		},
 	}
+
+	swiftCmd.Flags().StringVar(&swiftSchemaDir, "schema", "internal/infrastructure/graphql/schema", "Directory containing *.graphqls files")
+	swiftCmd.Flags().StringVar(&swiftOutputDir, "output", "sdk/swift_go_api", "Output directory for the generated Swift package")
 
 	generate.AddCommand(dartCmd, swiftCmd)
 	root.AddCommand(generate)

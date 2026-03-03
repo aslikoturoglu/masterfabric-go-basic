@@ -166,7 +166,7 @@ func buildQueryMethod(op *parser.Operation, schema *parser.Schema) string {
 	b.WriteString(fmt.Sprintf("      QueryOptions(\n"))
 	b.WriteString(fmt.Sprintf("        document: %s,\n", constName))
 	if len(op.Args) > 0 {
-		b.WriteString(fmt.Sprintf("        variables: %s,\n", buildVariablesMap(op.Args)))
+		b.WriteString(fmt.Sprintf("        variables: %s,\n", buildVariablesMap(op.Args, schema)))
 	}
 	b.WriteString("      ),\n")
 	b.WriteString("    );\n")
@@ -189,7 +189,7 @@ func buildMutationMethod(op *parser.Operation, schema *parser.Schema) string {
 	b.WriteString("      MutationOptions(\n")
 	b.WriteString(fmt.Sprintf("        document: %s,\n", constName))
 	if len(op.Args) > 0 {
-		b.WriteString(fmt.Sprintf("        variables: %s,\n", buildVariablesMap(op.Args)))
+		b.WriteString(fmt.Sprintf("        variables: %s,\n", buildVariablesMap(op.Args, schema)))
 	}
 	b.WriteString("      ),\n")
 	b.WriteString("    );\n")
@@ -257,11 +257,42 @@ func argDartType(a *parser.Argument, schema *parser.Schema) string {
 }
 
 // buildVariablesMap builds the variables map literal for the GraphQL request.
-func buildVariablesMap(args []*parser.Argument) string {
+// Each argument needs a type-appropriate serialisation expression:
+//   - Input types  → name.toJson()           (they have a toJson method)
+//   - Enums        → name.value              (extension getter from enums.dart)
+//   - Nullable enum → name?.value            (guard against null)
+//   - Scalars      → name                    (String/bool/int/double pass through)
+//   - Nullable scalars that must be omitted when null are wrapped in collection-if
+func buildVariablesMap(args []*parser.Argument, schema *parser.Schema) string {
 	var parts []string
 	for _, a := range args {
 		name := toCamelCase(a.Name)
-		parts = append(parts, fmt.Sprintf("'%s': %s", a.Name, name+".toJson()"))
+		var expr string
+		switch {
+		case isInput(a.TypeName, schema):
+			if a.NonNull {
+				expr = fmt.Sprintf("'%s': %s.toJson()", a.Name, name)
+			} else {
+				// Nullable input — only include key when non-null
+				expr = fmt.Sprintf("if (%s != null) '%s': %s!.toJson()", name, a.Name, name)
+			}
+		case isEnum(a.TypeName, schema):
+			if a.NonNull {
+				expr = fmt.Sprintf("'%s': %s.value", a.Name, name)
+			} else {
+				expr = fmt.Sprintf("if (%s != null) '%s': %s!.value", name, a.Name, name)
+			}
+		default:
+			// Scalar (String, bool, int, double, UUID, …)
+			if a.NonNull {
+				expr = fmt.Sprintf("'%s': %s", a.Name, name)
+			} else {
+				// Nullable scalar — omit the key entirely when null so the
+				// server receives no variable (rather than explicit null).
+				expr = fmt.Sprintf("if (%s != null) '%s': %s", name, a.Name, name)
+			}
+		}
+		parts = append(parts, expr)
 	}
 	return "{\n          " + strings.Join(parts, ",\n          ") + ",\n        }"
 }

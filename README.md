@@ -12,6 +12,12 @@ A mobile-backend Go service built with Clean/Hexagonal Architecture and DDD prin
 - [Environment Variables](#environment-variables)
 - [CLI — `masterfabric_go`](#cli--masterfabric_go)
 - [GraphQL API Reference](#graphql-api-reference)
+  - [Auth](#auth)
+  - [User](#user--requires-bearer-token)
+  - [Settings](#settings)
+  - [Admin](#admin--requires-bearer-token--admin-role)
+  - [Teardown](#teardown)
+  - [Error format](#error-format)
 - [Postman Collection](#postman-collection)
 - [Makefile Reference](#makefile-reference)
 - [Architecture](#architecture)
@@ -44,12 +50,28 @@ cmd/
   masterfabric_go/main.go           # Code-generation CLI entry point
 internal/
   domain/
-    iam/                            # User/Role models, repository interfaces, events
-    settings/                       # Settings models, repository interfaces, events
+    iam/
+      model/                        # User, Role entities + enums
+      repository/                   # UserRepository interface
+      event/                        # Domain events (UserRegistered, etc.)
+      policy/                       # RBAC helpers: RequireAdmin, RequireRole, HasRole
+    settings/
+      model/                        # UserSettings, AppSettings entities
+      repository/                   # Repository interfaces
+      event/                        # Domain events
   application/
-    auth/usecase/                   # Register, Login, RefreshTokens, Logout
-    user/usecase/                   # GetProfile, UpdateProfile, DeleteAccount
-    settings/usecase/               # GetMySettings, UpdateMySettings, GetAppSettings
+    auth/
+      usecase/                      # Register, Login, RefreshTokens, Logout
+      dto/                          # Auth request/response DTOs
+    user/
+      usecase/                      # GetProfile, UpdateProfile, DeleteAccount
+      dto/                          # User request/response DTOs
+    settings/
+      usecase/                      # GetMySettings, UpdateMySettings, GetAppSettings
+      dto/                          # Settings request/response DTOs
+    admin/
+      usecase/                      # ListUsers, GetUserByID, SuspendUser, ChangeRole
+      dto/                          # Admin request/response DTOs
   infrastructure/
     postgres/                       # pgx repository implementations + migrations
     redis/                          # Redis client helpers
@@ -65,8 +87,12 @@ internal/
     config/                         # Viper / env config
     logger/                         # slog structured logger
     middleware/                     # Auth + RequestID middleware
-    errors/                         # Domain error types
+    errors/                         # Domain error sentinel values
     events/                         # EventBus interface
+    health/                         # Liveness + readiness check handlers
+    database/                       # Postgres pool helper
+    cache/                          # Redis client helper
+    version/                        # Service name/version constants
 deployments/
   docker-compose.yml                # Postgres, Redis, RabbitMQ, App
   Dockerfile
@@ -380,6 +406,93 @@ query AppSettings {
 
 ---
 
+### Admin  _(requires Bearer token + `ADMIN` role)_
+
+All admin operations are protected by both authentication and role authorisation. A valid token with role `USER` or `MODERATOR` receives a `FORBIDDEN` error, not `UNAUTHENTICATED`.
+
+#### List Users
+
+```graphql
+query AdminListUsers($page: Int, $pageSize: Int) {
+  adminUsers(page: $page, pageSize: $pageSize) {
+    users { id email displayName role status createdAt }
+    totalCount
+    page
+    pageSize
+  }
+}
+```
+
+```json
+{ "page": 1, "pageSize": 10 }
+```
+
+The test script saves the first returned user ID to `adminTargetUserId` in the environment for subsequent admin requests.
+
+#### Get User By ID
+
+```graphql
+query AdminGetUser($id: UUID!) {
+  adminUser(id: $id) {
+    id email displayName avatarURL bio status role createdAt updatedAt
+  }
+}
+```
+
+```json
+{ "id": "{{adminTargetUserId}}" }
+```
+
+#### Change Role
+
+```graphql
+mutation AdminChangeRole($id: UUID!, $role: UserRole!) {
+  adminChangeRole(id: $id, role: $role) {
+    id email role updatedAt
+  }
+}
+```
+
+```json
+{ "id": "{{adminTargetUserId}}", "role": "MODERATOR" }
+```
+
+Available `UserRole` values: `ADMIN` | `MODERATOR` | `USER`
+
+#### Suspend / Reactivate User
+
+```graphql
+mutation AdminSuspendUser($id: UUID!, $suspend: Boolean!) {
+  adminSuspendUser(id: $id, suspend: $suspend) {
+    id email status updatedAt
+  }
+}
+```
+
+```json
+{ "id": "{{adminTargetUserId}}", "suspend": true }
+```
+
+Pass `"suspend": false` to reactivate. The operation is **idempotent** — suspending an already-suspended user returns `SUSPENDED` without error.
+
+---
+
+### Teardown
+
+#### Delete Account  _(requires Bearer token)_
+
+Permanently deletes the authenticated user's account. The Postman pre-request script includes a **production-URL safety guard** that aborts the request if `baseUrl` contains `production`, `prod.`, or `.io`.
+
+```graphql
+mutation DeleteAccount {
+  deleteAccount
+}
+```
+
+On success the Postman test script clears `accessToken`, `refreshToken`, `userId`, `userEmail`, and `userDisplayName` from the environment.
+
+---
+
 ### Error format
 
 GraphQL errors are returned in the response body regardless of HTTP status (always `200`):
@@ -396,13 +509,15 @@ GraphQL errors are returned in the response body regardless of HTTP status (alwa
 }
 ```
 
-| Code                  | Meaning                          |
-|-----------------------|----------------------------------|
-| `INVALID_CREDENTIALS` | Wrong email or password          |
-| `EMAIL_TAKEN`         | Email already registered         |
-| `USER_NOT_FOUND`      | User does not exist              |
-| `TOKEN_EXPIRED`       | JWT or refresh token expired     |
-| `UNAUTHENTICATED`     | Missing or invalid Bearer token  |
+| Code                  | Meaning                                         |
+|-----------------------|-------------------------------------------------|
+| `INVALID_CREDENTIALS` | Wrong email or password                         |
+| `EMAIL_TAKEN`         | Email already registered                        |
+| `USER_NOT_FOUND`      | User does not exist                             |
+| `NOT_FOUND`           | Requested resource does not exist               |
+| `TOKEN_EXPIRED`       | JWT or refresh token expired                    |
+| `UNAUTHENTICATED`     | Missing or invalid Bearer token                 |
+| `FORBIDDEN`           | Authenticated but insufficient role/permission  |
 
 ---
 
@@ -419,12 +534,14 @@ A complete Postman collection is included in `postman/`.
 
 ### What's included
 
-| Folder      | Requests                                                                 |
-|-------------|--------------------------------------------------------------------------|
-| Health      | Health Check, Readiness Check                                            |
-| Auth        | Register, Login, Login (wrong password), Register (duplicate), Refresh Tokens, Refresh (invalid token), Logout, Re-Login |
-| User        | Me, Me (unauthenticated), Update Profile, Update Profile (partial), Me (verify after update) |
-| Settings    | My Settings, Update My Settings, App Settings                            |
+| Folder    | Requests                                                                                                                                                |
+|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Health    | Health Check, Readiness Check                                                                                                                           |
+| Auth      | Register, Login, Login (wrong password), Register (duplicate), Refresh Tokens, Refresh (invalid token), Logout, Re-Login                               |
+| User      | Me, Me (unauthenticated), Update Profile, Update Profile (partial), Me (verify after update)                                                            |
+| Settings  | App Settings (public), My Settings, My Settings (unauthenticated), Update My Settings, Update My Settings (Light Theme), My Settings (verify after update) |
+| Admin     | List Users, Get User By ID, Change Role to MODERATOR, Suspend User, Reactivate User, Change Role to ADMIN, Change Role back to USER, Get User (not found), Suspend Already Suspended (idempotency), List Users Page 2 (pagination), Forbidden (regular user token), List Users (no auth) |
+| Teardown  | Delete Account, Me — After Delete (error path)                                                                                                          |
 
 ### Automatic token management
 
@@ -434,18 +551,21 @@ Collection scripts handle all token lifecycle automatically:
 - **Refresh Tokens** — rotates and overwrites the stored tokens
 - **Logout** — clears `accessToken` and `refreshToken` from the environment
 - **Re-Login** — restores tokens so subsequent folders run without manual steps
+- **Admin List Users** — saves the first returned user UUID to `adminTargetUserId` for downstream admin requests
 
 ### Environment variables
 
-| Variable          | Description                                     |
-|-------------------|-------------------------------------------------|
-| `baseUrl`         | Server base URL (default: `http://localhost:8080`) |
-| `graphqlEndpoint` | Full GraphQL URL (auto-set to `{{baseUrl}}/graphql`) |
-| `accessToken`     | JWT access token (managed by scripts)           |
-| `refreshToken`    | Refresh token (managed by scripts)              |
-| `userId`          | Authenticated user UUID (managed by scripts)    |
-| `testEmail`       | Email used in test runs                         |
-| `testPassword`    | Password used in test runs                      |
+| Variable             | Description                                                        |
+|----------------------|--------------------------------------------------------------------|
+| `baseUrl`            | Server base URL (default: `http://localhost:8080`)                 |
+| `graphqlEndpoint`    | Full GraphQL URL (auto-set to `{{baseUrl}}/graphql`)               |
+| `accessToken`        | JWT access token (managed by scripts)                              |
+| `refreshToken`       | Refresh token (managed by scripts)                                 |
+| `userId`             | Authenticated user UUID (managed by scripts)                       |
+| `testEmail`          | Email used in test runs                                            |
+| `testPassword`       | Password used in test runs                                         |
+| `adminTargetUserId`  | UUID of the first user from Admin List Users (managed by scripts)  |
+| `regularUserToken`   | Manually set — a token for a `USER`-role account (Admin FORBIDDEN test) |
 
 ### Run the full collection (Newman)
 
@@ -515,6 +635,25 @@ Infrastructure (Postgres, Redis, RabbitMQ, JWT)
 - Exchange: `masterfabric.events` (RabbitMQ topic)
 - Routing keys: `iam.user.registered`, `iam.user.login`, `settings.updated`, etc.
 - Consumers are idempotent
+
+### RBAC — role-based access control
+
+Roles are **hierarchical** and enforced at the use-case level (not at the resolver):
+
+```
+USER (1) < MODERATOR (2) < ADMIN (3)
+```
+
+`internal/domain/iam/policy/rbac.go` exposes helpers used at the top of every protected use case's `Execute()` method:
+
+| Helper                   | Minimum role required |
+|--------------------------|-----------------------|
+| `policy.RequireAdmin(ctx)`     | `ADMIN`           |
+| `policy.RequireModerator(ctx)` | `MODERATOR`       |
+| `policy.RequireRole(ctx, r)`   | exact role `r`    |
+| `policy.HasRole(ctx, r)`       | bool, no error    |
+
+A caller with `USER` or `MODERATOR` role hitting an admin use case receives `ErrForbidden` → GraphQL error code `FORBIDDEN`. A caller with no token receives `ErrUnauthorized` → `UNAUTHENTICATED`. These are distinct sentinel errors in `internal/shared/errors/`.
 
 ### Redis key schema
 
