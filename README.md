@@ -23,6 +23,17 @@ A mobile-backend Go service built with Clean/Hexagonal Architecture and DDD prin
 - [Architecture](#architecture)
 - [Mobile Client — Flutter](#mobile-client--flutter)
 - [Adding a New Feature](#adding-a-new-feature)
+- [FlowState AI](#flowstate-ai)
+
+---
+
+## FlowState AI
+
+Bu proje **FlowState AI** (Haftalık Optimizasyon Motoru) özelliğini içerir. Sabit program, esnek görevler ve AI ile haftalık takvim oluşturma GraphQL API üzerinden sunulur.
+
+- **Frontend:** `apps/flowstate-web` (Next.js 14)
+- **Çalıştırma:** `make flowstate-web` → http://localhost:3001
+- **GraphQL:** `flowstateFixedEvents`, `flowstateFlexibleTasks`, `flowstateGenerateSchedule`, vb.
 
 ---
 

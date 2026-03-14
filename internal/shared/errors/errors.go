@@ -34,6 +34,7 @@ var (
 	ErrUnauthorized       = New("UNAUTHORIZED", "authentication required", nil)
 	ErrForbidden          = New("FORBIDDEN", "access denied", nil)
 	ErrSettingsNotFound   = New("SETTINGS_NOT_FOUND", "settings not found", nil)
+	ErrNotFound           = New("NOT_FOUND", "resource not found", nil)
 	ErrInternal           = New("INTERNAL_ERROR", "an internal error occurred", nil)
 )
 

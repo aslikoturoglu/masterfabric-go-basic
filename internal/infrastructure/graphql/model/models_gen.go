@@ -60,6 +60,57 @@ type AuthUser struct {
 	Role        UserRole  `json:"role"`
 }
 
+type FlowstateFixedEvent struct {
+	ID         uuid.UUID              `json:"id"`
+	UserID     uuid.UUID              `json:"userID"`
+	Title      string                 `json:"title"`
+	StartTime  string                 `json:"startTime"`
+	EndTime    string                 `json:"endTime"`
+	DaysOfWeek []int                  `json:"daysOfWeek"`
+	Category   FlowstateEventCategory `json:"category"`
+	CreatedAt  time.Time              `json:"createdAt"`
+	UpdatedAt  time.Time              `json:"updatedAt"`
+}
+
+type FlowstateFixedEventInput struct {
+	Title      string                 `json:"title"`
+	StartTime  string                 `json:"startTime"`
+	EndTime    string                 `json:"endTime"`
+	DaysOfWeek []int                  `json:"daysOfWeek"`
+	Category   FlowstateEventCategory `json:"category"`
+}
+
+type FlowstateFlexibleTask struct {
+	ID               uuid.UUID                 `json:"id"`
+	UserID           uuid.UUID                 `json:"userID"`
+	Title            string                    `json:"title"`
+	DurationMinutes  int                       `json:"durationMinutes"`
+	FrequencyPerWeek int                       `json:"frequencyPerWeek"`
+	Priority         FlowstateTaskPriority     `json:"priority"`
+	PreferredContext FlowstatePreferredContext `json:"preferredContext"`
+	Constraints      string                    `json:"constraints"`
+	CreatedAt        time.Time                 `json:"createdAt"`
+	UpdatedAt        time.Time                 `json:"updatedAt"`
+}
+
+type FlowstateFlexibleTaskInput struct {
+	Title            string                     `json:"title"`
+	DurationMinutes  int                        `json:"durationMinutes"`
+	FrequencyPerWeek int                        `json:"frequencyPerWeek"`
+	Priority         *FlowstateTaskPriority     `json:"priority,omitempty"`
+	PreferredContext *FlowstatePreferredContext `json:"preferredContext,omitempty"`
+	Constraints      *string                    `json:"constraints,omitempty"`
+}
+
+type FlowstateGenerateScheduleInput struct {
+	WeekIdentifier *string `json:"weekIdentifier,omitempty"`
+}
+
+type FlowstateSchedulePayload struct {
+	WeekIdentifier string `json:"weekIdentifier"`
+	ScheduleData   string `json:"scheduleData"`
+}
+
 type LoginInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -168,6 +219,137 @@ type UserSettingsPayload struct {
 	Language        string    `json:"language"`
 	Timezone        string    `json:"timezone"`
 	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type FlowstateEventCategory string
+
+const (
+	FlowstateEventCategoryWork    FlowstateEventCategory = "Work"
+	FlowstateEventCategorySchool  FlowstateEventCategory = "School"
+	FlowstateEventCategoryMeeting FlowstateEventCategory = "Meeting"
+)
+
+var AllFlowstateEventCategory = []FlowstateEventCategory{
+	FlowstateEventCategoryWork,
+	FlowstateEventCategorySchool,
+	FlowstateEventCategoryMeeting,
+}
+
+func (e FlowstateEventCategory) IsValid() bool {
+	switch e {
+	case FlowstateEventCategoryWork, FlowstateEventCategorySchool, FlowstateEventCategoryMeeting:
+		return true
+	}
+	return false
+}
+
+func (e FlowstateEventCategory) String() string {
+	return string(e)
+}
+
+func (e *FlowstateEventCategory) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FlowstateEventCategory(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FlowstateEventCategory", str)
+	}
+	return nil
+}
+
+func (e FlowstateEventCategory) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type FlowstatePreferredContext string
+
+const (
+	FlowstatePreferredContextMorning   FlowstatePreferredContext = "Morning"
+	FlowstatePreferredContextEvening   FlowstatePreferredContext = "Evening"
+	FlowstatePreferredContextWorkBreak FlowstatePreferredContext = "WorkBreak"
+	FlowstatePreferredContextWeekend   FlowstatePreferredContext = "Weekend"
+)
+
+var AllFlowstatePreferredContext = []FlowstatePreferredContext{
+	FlowstatePreferredContextMorning,
+	FlowstatePreferredContextEvening,
+	FlowstatePreferredContextWorkBreak,
+	FlowstatePreferredContextWeekend,
+}
+
+func (e FlowstatePreferredContext) IsValid() bool {
+	switch e {
+	case FlowstatePreferredContextMorning, FlowstatePreferredContextEvening, FlowstatePreferredContextWorkBreak, FlowstatePreferredContextWeekend:
+		return true
+	}
+	return false
+}
+
+func (e FlowstatePreferredContext) String() string {
+	return string(e)
+}
+
+func (e *FlowstatePreferredContext) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FlowstatePreferredContext(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FlowstatePreferredContext", str)
+	}
+	return nil
+}
+
+func (e FlowstatePreferredContext) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type FlowstateTaskPriority string
+
+const (
+	FlowstateTaskPriorityHigh   FlowstateTaskPriority = "High"
+	FlowstateTaskPriorityMedium FlowstateTaskPriority = "Medium"
+	FlowstateTaskPriorityLow    FlowstateTaskPriority = "Low"
+)
+
+var AllFlowstateTaskPriority = []FlowstateTaskPriority{
+	FlowstateTaskPriorityHigh,
+	FlowstateTaskPriorityMedium,
+	FlowstateTaskPriorityLow,
+}
+
+func (e FlowstateTaskPriority) IsValid() bool {
+	switch e {
+	case FlowstateTaskPriorityHigh, FlowstateTaskPriorityMedium, FlowstateTaskPriorityLow:
+		return true
+	}
+	return false
+}
+
+func (e FlowstateTaskPriority) String() string {
+	return string(e)
+}
+
+func (e *FlowstateTaskPriority) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FlowstateTaskPriority(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FlowstateTaskPriority", str)
+	}
+	return nil
+}
+
+func (e FlowstateTaskPriority) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type Gender string

@@ -7,6 +7,7 @@ package resolver
 import (
 	adminUC "github.com/masterfabric/masterfabric_go_basic/internal/application/admin/usecase"
 	authUC "github.com/masterfabric/masterfabric_go_basic/internal/application/auth/usecase"
+	flowstateUC "github.com/masterfabric/masterfabric_go_basic/internal/application/flowstate/usecase"
 	settingsUC "github.com/masterfabric/masterfabric_go_basic/internal/application/settings/usecase"
 	userUC "github.com/masterfabric/masterfabric_go_basic/internal/application/user/usecase"
 )
@@ -34,4 +35,13 @@ type Resolver struct {
 	GetUserByIDUC *adminUC.GetUserByIDUseCase
 	SuspendUserUC *adminUC.SuspendUserUseCase
 	ChangeRoleUC  *adminUC.ChangeUserRoleUseCase
+	// FlowState AI
+	ListFixedEventsUC    *flowstateUC.ListFixedEventsUseCase
+	CreateFixedEventUC   *flowstateUC.CreateFixedEventUseCase
+	DeleteFixedEventUC   *flowstateUC.DeleteFixedEventUseCase
+	ListFlexibleTasksUC  *flowstateUC.ListFlexibleTasksUseCase
+	CreateFlexibleTaskUC *flowstateUC.CreateFlexibleTaskUseCase
+	DeleteFlexibleTaskUC *flowstateUC.DeleteFlexibleTaskUseCase
+	GenerateScheduleUC   *flowstateUC.GenerateScheduleUseCase
+	GetScheduleUC       *flowstateUC.GetScheduleUseCase
 }

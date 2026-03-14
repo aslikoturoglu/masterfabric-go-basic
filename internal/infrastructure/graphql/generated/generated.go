@@ -97,27 +97,65 @@ type ComplexityRoot struct {
 		Role        func(childComplexity int) int
 	}
 
+	FlowstateFixedEvent struct {
+		Category   func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		DaysOfWeek func(childComplexity int) int
+		EndTime    func(childComplexity int) int
+		ID         func(childComplexity int) int
+		StartTime  func(childComplexity int) int
+		Title      func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
+		UserID     func(childComplexity int) int
+	}
+
+	FlowstateFlexibleTask struct {
+		Constraints      func(childComplexity int) int
+		CreatedAt        func(childComplexity int) int
+		DurationMinutes  func(childComplexity int) int
+		FrequencyPerWeek func(childComplexity int) int
+		ID               func(childComplexity int) int
+		PreferredContext func(childComplexity int) int
+		Priority         func(childComplexity int) int
+		Title            func(childComplexity int) int
+		UpdatedAt        func(childComplexity int) int
+		UserID           func(childComplexity int) int
+	}
+
+	FlowstateSchedulePayload struct {
+		ScheduleData   func(childComplexity int) int
+		WeekIdentifier func(childComplexity int) int
+	}
+
 	Mutation struct {
-		AdminChangeRole  func(childComplexity int, id uuid.UUID, role model.UserRole) int
-		AdminSuspendUser func(childComplexity int, id uuid.UUID, suspend bool) int
-		DeleteAccount    func(childComplexity int) int
-		Login            func(childComplexity int, input model.LoginInput) int
-		Logout           func(childComplexity int, input model.LogoutInput) int
-		RefreshTokens    func(childComplexity int, input model.RefreshInput) int
-		Register         func(childComplexity int, input model.RegisterInput) int
-		UpdateMySettings func(childComplexity int, input model.UserSettingsInput) int
-		UpdateProfile    func(childComplexity int, input model.UpdateProfileInput) int
-		UpsertAddress    func(childComplexity int, input model.UpsertAddressInput) int
+		AdminChangeRole             func(childComplexity int, id uuid.UUID, role model.UserRole) int
+		AdminSuspendUser            func(childComplexity int, id uuid.UUID, suspend bool) int
+		DeleteAccount               func(childComplexity int) int
+		FlowstateCreateFixedEvent   func(childComplexity int, input model.FlowstateFixedEventInput) int
+		FlowstateCreateFlexibleTask func(childComplexity int, input model.FlowstateFlexibleTaskInput) int
+		FlowstateDeleteFixedEvent   func(childComplexity int, id uuid.UUID) int
+		FlowstateDeleteFlexibleTask func(childComplexity int, id uuid.UUID) int
+		FlowstateGenerateSchedule   func(childComplexity int, input *model.FlowstateGenerateScheduleInput) int
+		Login                       func(childComplexity int, input model.LoginInput) int
+		Logout                      func(childComplexity int, input model.LogoutInput) int
+		RefreshTokens               func(childComplexity int, input model.RefreshInput) int
+		Register                    func(childComplexity int, input model.RegisterInput) int
+		UpdateMySettings            func(childComplexity int, input model.UserSettingsInput) int
+		UpdateProfile               func(childComplexity int, input model.UpdateProfileInput) int
+		UpsertAddress               func(childComplexity int, input model.UpsertAddressInput) int
 	}
 
 	Query struct {
-		AddressesByUserID func(childComplexity int, userID uuid.UUID) int
-		AdminUser         func(childComplexity int, id uuid.UUID) int
-		AdminUsers        func(childComplexity int, page *int, pageSize *int) int
-		AppSettings       func(childComplexity int) int
-		Me                func(childComplexity int) int
-		MyAddresses       func(childComplexity int) int
-		MySettings        func(childComplexity int) int
+		AddressesByUserID      func(childComplexity int, userID uuid.UUID) int
+		AdminUser              func(childComplexity int, id uuid.UUID) int
+		AdminUsers             func(childComplexity int, page *int, pageSize *int) int
+		AppSettings            func(childComplexity int) int
+		FlowstateFixedEvents   func(childComplexity int) int
+		FlowstateFlexibleTasks func(childComplexity int) int
+		FlowstateSchedule      func(childComplexity int, week *string) int
+		Me                     func(childComplexity int) int
+		MyAddresses            func(childComplexity int) int
+		MySettings             func(childComplexity int) int
 	}
 
 	UserAddress struct {
@@ -175,6 +213,11 @@ type MutationResolver interface {
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshTokens(ctx context.Context, input model.RefreshInput) (*model.AuthPayload, error)
 	Logout(ctx context.Context, input model.LogoutInput) (bool, error)
+	FlowstateCreateFixedEvent(ctx context.Context, input model.FlowstateFixedEventInput) (*model.FlowstateFixedEvent, error)
+	FlowstateDeleteFixedEvent(ctx context.Context, id uuid.UUID) (bool, error)
+	FlowstateCreateFlexibleTask(ctx context.Context, input model.FlowstateFlexibleTaskInput) (*model.FlowstateFlexibleTask, error)
+	FlowstateDeleteFlexibleTask(ctx context.Context, id uuid.UUID) (bool, error)
+	FlowstateGenerateSchedule(ctx context.Context, input *model.FlowstateGenerateScheduleInput) (*model.FlowstateSchedulePayload, error)
 	UpdateMySettings(ctx context.Context, input model.UserSettingsInput) (*model.UserSettingsPayload, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.UserProfile, error)
 	DeleteAccount(ctx context.Context) (bool, error)
@@ -183,6 +226,9 @@ type MutationResolver interface {
 type QueryResolver interface {
 	AdminUsers(ctx context.Context, page *int, pageSize *int) (*model.AdminUserList, error)
 	AdminUser(ctx context.Context, id uuid.UUID) (*model.AdminUserProfile, error)
+	FlowstateFixedEvents(ctx context.Context) ([]*model.FlowstateFixedEvent, error)
+	FlowstateFlexibleTasks(ctx context.Context) ([]*model.FlowstateFlexibleTask, error)
+	FlowstateSchedule(ctx context.Context, week *string) (*model.FlowstateSchedulePayload, error)
 	MySettings(ctx context.Context) (*model.UserSettingsPayload, error)
 	AppSettings(ctx context.Context) ([]*model.AppSetting, error)
 	Me(ctx context.Context) (*model.UserProfile, error)
@@ -447,6 +493,153 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.AuthUser.Role(childComplexity), true
 
+	case "FlowstateFixedEvent.category":
+		if e.complexity.FlowstateFixedEvent.Category == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.Category(childComplexity), true
+
+	case "FlowstateFixedEvent.createdAt":
+		if e.complexity.FlowstateFixedEvent.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.CreatedAt(childComplexity), true
+
+	case "FlowstateFixedEvent.daysOfWeek":
+		if e.complexity.FlowstateFixedEvent.DaysOfWeek == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.DaysOfWeek(childComplexity), true
+
+	case "FlowstateFixedEvent.endTime":
+		if e.complexity.FlowstateFixedEvent.EndTime == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.EndTime(childComplexity), true
+
+	case "FlowstateFixedEvent.id":
+		if e.complexity.FlowstateFixedEvent.ID == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.ID(childComplexity), true
+
+	case "FlowstateFixedEvent.startTime":
+		if e.complexity.FlowstateFixedEvent.StartTime == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.StartTime(childComplexity), true
+
+	case "FlowstateFixedEvent.title":
+		if e.complexity.FlowstateFixedEvent.Title == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.Title(childComplexity), true
+
+	case "FlowstateFixedEvent.updatedAt":
+		if e.complexity.FlowstateFixedEvent.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.UpdatedAt(childComplexity), true
+
+	case "FlowstateFixedEvent.userID":
+		if e.complexity.FlowstateFixedEvent.UserID == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFixedEvent.UserID(childComplexity), true
+
+	case "FlowstateFlexibleTask.constraints":
+		if e.complexity.FlowstateFlexibleTask.Constraints == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.Constraints(childComplexity), true
+
+	case "FlowstateFlexibleTask.createdAt":
+		if e.complexity.FlowstateFlexibleTask.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.CreatedAt(childComplexity), true
+
+	case "FlowstateFlexibleTask.durationMinutes":
+		if e.complexity.FlowstateFlexibleTask.DurationMinutes == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.DurationMinutes(childComplexity), true
+
+	case "FlowstateFlexibleTask.frequencyPerWeek":
+		if e.complexity.FlowstateFlexibleTask.FrequencyPerWeek == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.FrequencyPerWeek(childComplexity), true
+
+	case "FlowstateFlexibleTask.id":
+		if e.complexity.FlowstateFlexibleTask.ID == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.ID(childComplexity), true
+
+	case "FlowstateFlexibleTask.preferredContext":
+		if e.complexity.FlowstateFlexibleTask.PreferredContext == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.PreferredContext(childComplexity), true
+
+	case "FlowstateFlexibleTask.priority":
+		if e.complexity.FlowstateFlexibleTask.Priority == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.Priority(childComplexity), true
+
+	case "FlowstateFlexibleTask.title":
+		if e.complexity.FlowstateFlexibleTask.Title == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.Title(childComplexity), true
+
+	case "FlowstateFlexibleTask.updatedAt":
+		if e.complexity.FlowstateFlexibleTask.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.UpdatedAt(childComplexity), true
+
+	case "FlowstateFlexibleTask.userID":
+		if e.complexity.FlowstateFlexibleTask.UserID == nil {
+			break
+		}
+
+		return e.complexity.FlowstateFlexibleTask.UserID(childComplexity), true
+
+	case "FlowstateSchedulePayload.scheduleData":
+		if e.complexity.FlowstateSchedulePayload.ScheduleData == nil {
+			break
+		}
+
+		return e.complexity.FlowstateSchedulePayload.ScheduleData(childComplexity), true
+
+	case "FlowstateSchedulePayload.weekIdentifier":
+		if e.complexity.FlowstateSchedulePayload.WeekIdentifier == nil {
+			break
+		}
+
+		return e.complexity.FlowstateSchedulePayload.WeekIdentifier(childComplexity), true
+
 	case "Mutation.adminChangeRole":
 		if e.complexity.Mutation.AdminChangeRole == nil {
 			break
@@ -477,6 +670,66 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.DeleteAccount(childComplexity), true
+
+	case "Mutation.flowstateCreateFixedEvent":
+		if e.complexity.Mutation.FlowstateCreateFixedEvent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_flowstateCreateFixedEvent_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FlowstateCreateFixedEvent(childComplexity, args["input"].(model.FlowstateFixedEventInput)), true
+
+	case "Mutation.flowstateCreateFlexibleTask":
+		if e.complexity.Mutation.FlowstateCreateFlexibleTask == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_flowstateCreateFlexibleTask_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FlowstateCreateFlexibleTask(childComplexity, args["input"].(model.FlowstateFlexibleTaskInput)), true
+
+	case "Mutation.flowstateDeleteFixedEvent":
+		if e.complexity.Mutation.FlowstateDeleteFixedEvent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_flowstateDeleteFixedEvent_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FlowstateDeleteFixedEvent(childComplexity, args["id"].(uuid.UUID)), true
+
+	case "Mutation.flowstateDeleteFlexibleTask":
+		if e.complexity.Mutation.FlowstateDeleteFlexibleTask == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_flowstateDeleteFlexibleTask_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FlowstateDeleteFlexibleTask(childComplexity, args["id"].(uuid.UUID)), true
+
+	case "Mutation.flowstateGenerateSchedule":
+		if e.complexity.Mutation.FlowstateGenerateSchedule == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_flowstateGenerateSchedule_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FlowstateGenerateSchedule(childComplexity, args["input"].(*model.FlowstateGenerateScheduleInput)), true
 
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
@@ -604,6 +857,32 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.AppSettings(childComplexity), true
+
+	case "Query.flowstateFixedEvents":
+		if e.complexity.Query.FlowstateFixedEvents == nil {
+			break
+		}
+
+		return e.complexity.Query.FlowstateFixedEvents(childComplexity), true
+
+	case "Query.flowstateFlexibleTasks":
+		if e.complexity.Query.FlowstateFlexibleTasks == nil {
+			break
+		}
+
+		return e.complexity.Query.FlowstateFlexibleTasks(childComplexity), true
+
+	case "Query.flowstateSchedule":
+		if e.complexity.Query.FlowstateSchedule == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowstateSchedule_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowstateSchedule(childComplexity, args["week"].(*string)), true
 
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
@@ -900,6 +1179,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	rc := graphql.GetOperationContext(ctx)
 	ec := executionContext{rc, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputFlowstateFixedEventInput,
+		ec.unmarshalInputFlowstateFlexibleTaskInput,
+		ec.unmarshalInputFlowstateGenerateScheduleInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputLogoutInput,
 		ec.unmarshalInputRefreshInput,
@@ -1107,6 +1389,112 @@ type AuthUser {
   displayName: String!
   avatarURL:   String!
   role:        UserRole!
+}
+`, BuiltIn: false},
+	{Name: "../schema/flowstate.graphqls", Input: `# flowstate.graphqls — FlowState AI: Fixed events, flexible tasks, schedule generation
+
+extend type Query {
+  """List all fixed events for the authenticated user."""
+  flowstateFixedEvents: [FlowstateFixedEvent!]!
+
+  """List all flexible tasks for the authenticated user."""
+  flowstateFlexibleTasks: [FlowstateFlexibleTask!]!
+
+  """Get the generated schedule for a week (default: current week). Returns null if not yet generated."""
+  flowstateSchedule(week: String): FlowstateSchedulePayload
+}
+
+extend type Mutation {
+  """Create a new fixed event."""
+  flowstateCreateFixedEvent(input: FlowstateFixedEventInput!): FlowstateFixedEvent!
+
+  """Delete a fixed event."""
+  flowstateDeleteFixedEvent(id: UUID!): Boolean!
+
+  """Create a new flexible task."""
+  flowstateCreateFlexibleTask(input: FlowstateFlexibleTaskInput!): FlowstateFlexibleTask!
+
+  """Delete a flexible task."""
+  flowstateDeleteFlexibleTask(id: UUID!): Boolean!
+
+  """Generate a weekly schedule via AI."""
+  flowstateGenerateSchedule(input: FlowstateGenerateScheduleInput): FlowstateSchedulePayload!
+}
+
+# ── Inputs ──────────────────────────────────────────────────────────────────
+
+input FlowstateFixedEventInput {
+  title:      String!
+  startTime:  String!
+  endTime:    String!
+  daysOfWeek: [Int!]!
+  category:   FlowstateEventCategory!
+}
+
+input FlowstateFlexibleTaskInput {
+  title:             String!
+  durationMinutes:   Int!
+  frequencyPerWeek:  Int!
+  priority:          FlowstateTaskPriority
+  preferredContext:  FlowstatePreferredContext
+  constraints:       String   # JSON string
+}
+
+input FlowstateGenerateScheduleInput {
+  weekIdentifier: String
+}
+
+# ── Response types ───────────────────────────────────────────────────────────
+
+type FlowstateFixedEvent {
+  id:         UUID!
+  userID:     UUID!
+  title:      String!
+  startTime:  String!
+  endTime:    String!
+  daysOfWeek: [Int!]!
+  category:   FlowstateEventCategory!
+  createdAt:  Time!
+  updatedAt:  Time!
+}
+
+type FlowstateFlexibleTask {
+  id:                UUID!
+  userID:            UUID!
+  title:             String!
+  durationMinutes:   Int!
+  frequencyPerWeek:  Int!
+  priority:          FlowstateTaskPriority!
+  preferredContext:  FlowstatePreferredContext!
+  constraints:       String!
+  createdAt:         Time!
+  updatedAt:         Time!
+}
+
+type FlowstateSchedulePayload {
+  weekIdentifier: String!
+  scheduleData:   String!   # JSON string
+}
+
+# ── Enums ────────────────────────────────────────────────────────────────────
+
+enum FlowstateEventCategory {
+  Work
+  School
+  Meeting
+}
+
+enum FlowstateTaskPriority {
+  High
+  Medium
+  Low
+}
+
+enum FlowstatePreferredContext {
+  Morning
+  Evening
+  WorkBreak
+  Weekend
 }
 `, BuiltIn: false},
 	{Name: "../schema/schema.graphqls", Input: `# schema.graphqls — shared scalars and root types
@@ -1402,6 +1790,166 @@ func (ec *executionContext) field_Mutation_adminSuspendUser_argsSuspend(
 	}
 
 	var zeroVal bool
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_flowstateCreateFixedEvent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_flowstateCreateFixedEvent_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_flowstateCreateFixedEvent_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.FlowstateFixedEventInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.FlowstateFixedEventInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNFlowstateFixedEventInput2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEventInput(ctx, tmp)
+	}
+
+	var zeroVal model.FlowstateFixedEventInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_flowstateCreateFlexibleTask_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_flowstateCreateFlexibleTask_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_flowstateCreateFlexibleTask_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.FlowstateFlexibleTaskInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.FlowstateFlexibleTaskInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNFlowstateFlexibleTaskInput2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTaskInput(ctx, tmp)
+	}
+
+	var zeroVal model.FlowstateFlexibleTaskInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_flowstateDeleteFixedEvent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_flowstateDeleteFixedEvent_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_flowstateDeleteFixedEvent_argsID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (uuid.UUID, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["id"]
+	if !ok {
+		var zeroVal uuid.UUID
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, tmp)
+	}
+
+	var zeroVal uuid.UUID
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_flowstateDeleteFlexibleTask_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_flowstateDeleteFlexibleTask_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_flowstateDeleteFlexibleTask_argsID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (uuid.UUID, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["id"]
+	if !ok {
+		var zeroVal uuid.UUID
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, tmp)
+	}
+
+	var zeroVal uuid.UUID
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_flowstateGenerateSchedule_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_flowstateGenerateSchedule_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_flowstateGenerateSchedule_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*model.FlowstateGenerateScheduleInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal *model.FlowstateGenerateScheduleInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalOFlowstateGenerateScheduleInput2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateGenerateScheduleInput(ctx, tmp)
+	}
+
+	var zeroVal *model.FlowstateGenerateScheduleInput
 	return zeroVal, nil
 }
 
@@ -1781,6 +2329,38 @@ func (ec *executionContext) field_Query_adminUsers_argsPageSize(
 	}
 
 	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowstateSchedule_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowstateSchedule_argsWeek(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["week"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowstateSchedule_argsWeek(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*string, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["week"]
+	if !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("week"))
+	if tmp, ok := rawArgs["week"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -3399,6 +3979,930 @@ func (ec *executionContext) fieldContext_AuthUser_role(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _FlowstateFixedEvent_id(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UUID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_userID(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_userID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UUID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_title(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_startTime(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_startTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StartTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_startTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_endTime(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_endTime(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EndTime, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_endTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_daysOfWeek(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_daysOfWeek(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DaysOfWeek, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]int)
+	fc.Result = res
+	return ec.marshalNInt2ᚕintᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_daysOfWeek(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_category(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_category(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Category, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.FlowstateEventCategory)
+	fc.Result = res
+	return ec.marshalNFlowstateEventCategory2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateEventCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FlowstateEventCategory does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFixedEvent_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFixedEvent) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFixedEvent_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFixedEvent_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFixedEvent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_id(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UUID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_userID(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_userID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(uuid.UUID)
+	fc.Result = res
+	return ec.marshalNUUID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_userID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type UUID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_title(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_durationMinutes(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_durationMinutes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DurationMinutes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_durationMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_frequencyPerWeek(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_frequencyPerWeek(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FrequencyPerWeek, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_frequencyPerWeek(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_priority(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_priority(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Priority, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.FlowstateTaskPriority)
+	fc.Result = res
+	return ec.marshalNFlowstateTaskPriority2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FlowstateTaskPriority does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_preferredContext(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_preferredContext(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PreferredContext, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.FlowstatePreferredContext)
+	fc.Result = res
+	return ec.marshalNFlowstatePreferredContext2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_preferredContext(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type FlowstatePreferredContext does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_constraints(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_constraints(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Constraints, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_constraints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateFlexibleTask_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateFlexibleTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateFlexibleTask_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateFlexibleTask_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateFlexibleTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateSchedulePayload_weekIdentifier(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateSchedulePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateSchedulePayload_weekIdentifier(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.WeekIdentifier, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateSchedulePayload_weekIdentifier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateSchedulePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _FlowstateSchedulePayload_scheduleData(ctx context.Context, field graphql.CollectedField, obj *model.FlowstateSchedulePayload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_FlowstateSchedulePayload_scheduleData(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ScheduleData, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_FlowstateSchedulePayload_scheduleData(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "FlowstateSchedulePayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_adminSuspendUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_adminSuspendUser(ctx, field)
 	if err != nil {
@@ -3829,6 +5333,329 @@ func (ec *executionContext) fieldContext_Mutation_logout(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_logout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_flowstateCreateFixedEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_flowstateCreateFixedEvent(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FlowstateCreateFixedEvent(rctx, fc.Args["input"].(model.FlowstateFixedEventInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowstateFixedEvent)
+	fc.Result = res
+	return ec.marshalNFlowstateFixedEvent2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEvent(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_flowstateCreateFixedEvent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FlowstateFixedEvent_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_FlowstateFixedEvent_userID(ctx, field)
+			case "title":
+				return ec.fieldContext_FlowstateFixedEvent_title(ctx, field)
+			case "startTime":
+				return ec.fieldContext_FlowstateFixedEvent_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_FlowstateFixedEvent_endTime(ctx, field)
+			case "daysOfWeek":
+				return ec.fieldContext_FlowstateFixedEvent_daysOfWeek(ctx, field)
+			case "category":
+				return ec.fieldContext_FlowstateFixedEvent_category(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_FlowstateFixedEvent_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_FlowstateFixedEvent_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateFixedEvent", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_flowstateCreateFixedEvent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_flowstateDeleteFixedEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_flowstateDeleteFixedEvent(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FlowstateDeleteFixedEvent(rctx, fc.Args["id"].(uuid.UUID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_flowstateDeleteFixedEvent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_flowstateDeleteFixedEvent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_flowstateCreateFlexibleTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_flowstateCreateFlexibleTask(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FlowstateCreateFlexibleTask(rctx, fc.Args["input"].(model.FlowstateFlexibleTaskInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowstateFlexibleTask)
+	fc.Result = res
+	return ec.marshalNFlowstateFlexibleTask2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTask(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_flowstateCreateFlexibleTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FlowstateFlexibleTask_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_FlowstateFlexibleTask_userID(ctx, field)
+			case "title":
+				return ec.fieldContext_FlowstateFlexibleTask_title(ctx, field)
+			case "durationMinutes":
+				return ec.fieldContext_FlowstateFlexibleTask_durationMinutes(ctx, field)
+			case "frequencyPerWeek":
+				return ec.fieldContext_FlowstateFlexibleTask_frequencyPerWeek(ctx, field)
+			case "priority":
+				return ec.fieldContext_FlowstateFlexibleTask_priority(ctx, field)
+			case "preferredContext":
+				return ec.fieldContext_FlowstateFlexibleTask_preferredContext(ctx, field)
+			case "constraints":
+				return ec.fieldContext_FlowstateFlexibleTask_constraints(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_FlowstateFlexibleTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_FlowstateFlexibleTask_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateFlexibleTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_flowstateCreateFlexibleTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_flowstateDeleteFlexibleTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_flowstateDeleteFlexibleTask(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FlowstateDeleteFlexibleTask(rctx, fc.Args["id"].(uuid.UUID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_flowstateDeleteFlexibleTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_flowstateDeleteFlexibleTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_flowstateGenerateSchedule(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_flowstateGenerateSchedule(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FlowstateGenerateSchedule(rctx, fc.Args["input"].(*model.FlowstateGenerateScheduleInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowstateSchedulePayload)
+	fc.Result = res
+	return ec.marshalNFlowstateSchedulePayload2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateSchedulePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_flowstateGenerateSchedule(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "weekIdentifier":
+				return ec.fieldContext_FlowstateSchedulePayload_weekIdentifier(ctx, field)
+			case "scheduleData":
+				return ec.fieldContext_FlowstateSchedulePayload_scheduleData(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateSchedulePayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_flowstateGenerateSchedule_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4278,6 +6105,194 @@ func (ec *executionContext) fieldContext_Query_adminUser(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_adminUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowstateFixedEvents(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowstateFixedEvents(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowstateFixedEvents(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.FlowstateFixedEvent)
+	fc.Result = res
+	return ec.marshalNFlowstateFixedEvent2ᚕᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEventᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowstateFixedEvents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FlowstateFixedEvent_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_FlowstateFixedEvent_userID(ctx, field)
+			case "title":
+				return ec.fieldContext_FlowstateFixedEvent_title(ctx, field)
+			case "startTime":
+				return ec.fieldContext_FlowstateFixedEvent_startTime(ctx, field)
+			case "endTime":
+				return ec.fieldContext_FlowstateFixedEvent_endTime(ctx, field)
+			case "daysOfWeek":
+				return ec.fieldContext_FlowstateFixedEvent_daysOfWeek(ctx, field)
+			case "category":
+				return ec.fieldContext_FlowstateFixedEvent_category(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_FlowstateFixedEvent_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_FlowstateFixedEvent_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateFixedEvent", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowstateFlexibleTasks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowstateFlexibleTasks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowstateFlexibleTasks(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.FlowstateFlexibleTask)
+	fc.Result = res
+	return ec.marshalNFlowstateFlexibleTask2ᚕᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTaskᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowstateFlexibleTasks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_FlowstateFlexibleTask_id(ctx, field)
+			case "userID":
+				return ec.fieldContext_FlowstateFlexibleTask_userID(ctx, field)
+			case "title":
+				return ec.fieldContext_FlowstateFlexibleTask_title(ctx, field)
+			case "durationMinutes":
+				return ec.fieldContext_FlowstateFlexibleTask_durationMinutes(ctx, field)
+			case "frequencyPerWeek":
+				return ec.fieldContext_FlowstateFlexibleTask_frequencyPerWeek(ctx, field)
+			case "priority":
+				return ec.fieldContext_FlowstateFlexibleTask_priority(ctx, field)
+			case "preferredContext":
+				return ec.fieldContext_FlowstateFlexibleTask_preferredContext(ctx, field)
+			case "constraints":
+				return ec.fieldContext_FlowstateFlexibleTask_constraints(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_FlowstateFlexibleTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_FlowstateFlexibleTask_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateFlexibleTask", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowstateSchedule(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowstateSchedule(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowstateSchedule(rctx, fc.Args["week"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowstateSchedulePayload)
+	fc.Result = res
+	return ec.marshalOFlowstateSchedulePayload2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateSchedulePayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowstateSchedule(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "weekIdentifier":
+				return ec.fieldContext_FlowstateSchedulePayload_weekIdentifier(ctx, field)
+			case "scheduleData":
+				return ec.fieldContext_FlowstateSchedulePayload_scheduleData(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowstateSchedulePayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowstateSchedule_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -8225,6 +10240,150 @@ func (ec *executionContext) fieldContext___Type_specifiedByURL(_ context.Context
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputFlowstateFixedEventInput(ctx context.Context, obj interface{}) (model.FlowstateFixedEventInput, error) {
+	var it model.FlowstateFixedEventInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"title", "startTime", "endTime", "daysOfWeek", "category"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "startTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTime"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartTime = data
+		case "endTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endTime"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EndTime = data
+		case "daysOfWeek":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("daysOfWeek"))
+			data, err := ec.unmarshalNInt2ᚕintᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DaysOfWeek = data
+		case "category":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("category"))
+			data, err := ec.unmarshalNFlowstateEventCategory2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateEventCategory(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Category = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputFlowstateFlexibleTaskInput(ctx context.Context, obj interface{}) (model.FlowstateFlexibleTaskInput, error) {
+	var it model.FlowstateFlexibleTaskInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"title", "durationMinutes", "frequencyPerWeek", "priority", "preferredContext", "constraints"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "durationMinutes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("durationMinutes"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DurationMinutes = data
+		case "frequencyPerWeek":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("frequencyPerWeek"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FrequencyPerWeek = data
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOFlowstateTaskPriority2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
+		case "preferredContext":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("preferredContext"))
+			data, err := ec.unmarshalOFlowstatePreferredContext2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PreferredContext = data
+		case "constraints":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("constraints"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Constraints = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputFlowstateGenerateScheduleInput(ctx context.Context, obj interface{}) (model.FlowstateGenerateScheduleInput, error) {
+	var it model.FlowstateGenerateScheduleInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"weekIdentifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "weekIdentifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weekIdentifier"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WeekIdentifier = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj interface{}) (model.LoginInput, error) {
 	var it model.LoginInput
 	asMap := map[string]interface{}{}
@@ -8955,6 +11114,213 @@ func (ec *executionContext) _AuthUser(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var flowstateFixedEventImplementors = []string{"FlowstateFixedEvent"}
+
+func (ec *executionContext) _FlowstateFixedEvent(ctx context.Context, sel ast.SelectionSet, obj *model.FlowstateFixedEvent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, flowstateFixedEventImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FlowstateFixedEvent")
+		case "id":
+			out.Values[i] = ec._FlowstateFixedEvent_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "userID":
+			out.Values[i] = ec._FlowstateFixedEvent_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._FlowstateFixedEvent_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startTime":
+			out.Values[i] = ec._FlowstateFixedEvent_startTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endTime":
+			out.Values[i] = ec._FlowstateFixedEvent_endTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "daysOfWeek":
+			out.Values[i] = ec._FlowstateFixedEvent_daysOfWeek(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "category":
+			out.Values[i] = ec._FlowstateFixedEvent_category(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._FlowstateFixedEvent_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._FlowstateFixedEvent_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var flowstateFlexibleTaskImplementors = []string{"FlowstateFlexibleTask"}
+
+func (ec *executionContext) _FlowstateFlexibleTask(ctx context.Context, sel ast.SelectionSet, obj *model.FlowstateFlexibleTask) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, flowstateFlexibleTaskImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FlowstateFlexibleTask")
+		case "id":
+			out.Values[i] = ec._FlowstateFlexibleTask_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "userID":
+			out.Values[i] = ec._FlowstateFlexibleTask_userID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._FlowstateFlexibleTask_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationMinutes":
+			out.Values[i] = ec._FlowstateFlexibleTask_durationMinutes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "frequencyPerWeek":
+			out.Values[i] = ec._FlowstateFlexibleTask_frequencyPerWeek(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priority":
+			out.Values[i] = ec._FlowstateFlexibleTask_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "preferredContext":
+			out.Values[i] = ec._FlowstateFlexibleTask_preferredContext(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "constraints":
+			out.Values[i] = ec._FlowstateFlexibleTask_constraints(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._FlowstateFlexibleTask_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._FlowstateFlexibleTask_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var flowstateSchedulePayloadImplementors = []string{"FlowstateSchedulePayload"}
+
+func (ec *executionContext) _FlowstateSchedulePayload(ctx context.Context, sel ast.SelectionSet, obj *model.FlowstateSchedulePayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, flowstateSchedulePayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("FlowstateSchedulePayload")
+		case "weekIdentifier":
+			out.Values[i] = ec._FlowstateSchedulePayload_weekIdentifier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scheduleData":
+			out.Values[i] = ec._FlowstateSchedulePayload_scheduleData(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -9012,6 +11378,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "logout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_logout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowstateCreateFixedEvent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_flowstateCreateFixedEvent(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowstateDeleteFixedEvent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_flowstateDeleteFixedEvent(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowstateCreateFlexibleTask":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_flowstateCreateFlexibleTask(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowstateDeleteFlexibleTask":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_flowstateDeleteFlexibleTask(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowstateGenerateSchedule":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_flowstateGenerateSchedule(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -9121,6 +11522,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowstateFixedEvents":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowstateFixedEvents(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowstateFlexibleTasks":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowstateFlexibleTasks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowstateSchedule":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowstateSchedule(ctx, field)
 				return res
 			}
 
@@ -10048,6 +12512,176 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNFlowstateEventCategory2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateEventCategory(ctx context.Context, v interface{}) (model.FlowstateEventCategory, error) {
+	var res model.FlowstateEventCategory
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFlowstateEventCategory2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateEventCategory(ctx context.Context, sel ast.SelectionSet, v model.FlowstateEventCategory) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNFlowstateFixedEvent2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEvent(ctx context.Context, sel ast.SelectionSet, v model.FlowstateFixedEvent) graphql.Marshaler {
+	return ec._FlowstateFixedEvent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFlowstateFixedEvent2ᚕᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FlowstateFixedEvent) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNFlowstateFixedEvent2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEvent(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFlowstateFixedEvent2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEvent(ctx context.Context, sel ast.SelectionSet, v *model.FlowstateFixedEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FlowstateFixedEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFlowstateFixedEventInput2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFixedEventInput(ctx context.Context, v interface{}) (model.FlowstateFixedEventInput, error) {
+	res, err := ec.unmarshalInputFlowstateFixedEventInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFlowstateFlexibleTask2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTask(ctx context.Context, sel ast.SelectionSet, v model.FlowstateFlexibleTask) graphql.Marshaler {
+	return ec._FlowstateFlexibleTask(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFlowstateFlexibleTask2ᚕᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTaskᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FlowstateFlexibleTask) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNFlowstateFlexibleTask2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTask(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNFlowstateFlexibleTask2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTask(ctx context.Context, sel ast.SelectionSet, v *model.FlowstateFlexibleTask) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FlowstateFlexibleTask(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFlowstateFlexibleTaskInput2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateFlexibleTaskInput(ctx context.Context, v interface{}) (model.FlowstateFlexibleTaskInput, error) {
+	res, err := ec.unmarshalInputFlowstateFlexibleTaskInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNFlowstatePreferredContext2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx context.Context, v interface{}) (model.FlowstatePreferredContext, error) {
+	var res model.FlowstatePreferredContext
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFlowstatePreferredContext2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx context.Context, sel ast.SelectionSet, v model.FlowstatePreferredContext) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNFlowstateSchedulePayload2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateSchedulePayload(ctx context.Context, sel ast.SelectionSet, v model.FlowstateSchedulePayload) graphql.Marshaler {
+	return ec._FlowstateSchedulePayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNFlowstateSchedulePayload2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateSchedulePayload(ctx context.Context, sel ast.SelectionSet, v *model.FlowstateSchedulePayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._FlowstateSchedulePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNFlowstateTaskPriority2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx context.Context, v interface{}) (model.FlowstateTaskPriority, error) {
+	var res model.FlowstateTaskPriority
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFlowstateTaskPriority2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx context.Context, sel ast.SelectionSet, v model.FlowstateTaskPriority) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNGender2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐGender(ctx context.Context, v interface{}) (model.Gender, error) {
 	var res model.Gender
 	err := res.UnmarshalGQL(v)
@@ -10071,6 +12705,38 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNInt2ᚕintᚄ(ctx context.Context, v interface{}) ([]int, error) {
+	var vSlice []interface{}
+	if v != nil {
+		vSlice = graphql.CoerceList(v)
+	}
+	var err error
+	res := make([]int, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNInt2int(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNInt2ᚕintᚄ(ctx context.Context, sel ast.SelectionSet, v []int) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNInt2int(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐLoginInput(ctx context.Context, v interface{}) (model.LoginInput, error) {
@@ -10546,6 +13212,53 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOFlowstateGenerateScheduleInput2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateGenerateScheduleInput(ctx context.Context, v interface{}) (*model.FlowstateGenerateScheduleInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputFlowstateGenerateScheduleInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOFlowstatePreferredContext2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx context.Context, v interface{}) (*model.FlowstatePreferredContext, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.FlowstatePreferredContext)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFlowstatePreferredContext2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstatePreferredContext(ctx context.Context, sel ast.SelectionSet, v *model.FlowstatePreferredContext) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) marshalOFlowstateSchedulePayload2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateSchedulePayload(ctx context.Context, sel ast.SelectionSet, v *model.FlowstateSchedulePayload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._FlowstateSchedulePayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOFlowstateTaskPriority2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx context.Context, v interface{}) (*model.FlowstateTaskPriority, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.FlowstateTaskPriority)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFlowstateTaskPriority2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐFlowstateTaskPriority(ctx context.Context, sel ast.SelectionSet, v *model.FlowstateTaskPriority) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOGender2ᚖgithubᚗcomᚋmasterfabricᚋmasterfabric_go_basicᚋinternalᚋinfrastructureᚋgraphqlᚋmodelᚐGender(ctx context.Context, v interface{}) (*model.Gender, error) {

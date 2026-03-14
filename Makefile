@@ -85,6 +85,10 @@ docker-down:
 docker-logs:
 	@$(COMPOSE) logs -f app
 
+## flowstate-web: run FlowState AI Next.js frontend (port 3001)
+flowstate-web:
+	@cd apps/flowstate-web && npm install && npm run dev
+
 ## clean: remove built binaries
 clean:
 	@rm -rf bin/

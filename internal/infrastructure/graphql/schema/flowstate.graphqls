@@ -1,0 +1,105 @@
+# flowstate.graphqls — FlowState AI: Fixed events, flexible tasks, schedule generation
+
+extend type Query {
+  """List all fixed events for the authenticated user."""
+  flowstateFixedEvents: [FlowstateFixedEvent!]!
+
+  """List all flexible tasks for the authenticated user."""
+  flowstateFlexibleTasks: [FlowstateFlexibleTask!]!
+
+  """Get the generated schedule for a week (default: current week). Returns null if not yet generated."""
+  flowstateSchedule(week: String): FlowstateSchedulePayload
+}
+
+extend type Mutation {
+  """Create a new fixed event."""
+  flowstateCreateFixedEvent(input: FlowstateFixedEventInput!): FlowstateFixedEvent!
+
+  """Delete a fixed event."""
+  flowstateDeleteFixedEvent(id: UUID!): Boolean!
+
+  """Create a new flexible task."""
+  flowstateCreateFlexibleTask(input: FlowstateFlexibleTaskInput!): FlowstateFlexibleTask!
+
+  """Delete a flexible task."""
+  flowstateDeleteFlexibleTask(id: UUID!): Boolean!
+
+  """Generate a weekly schedule via AI."""
+  flowstateGenerateSchedule(input: FlowstateGenerateScheduleInput): FlowstateSchedulePayload!
+}
+
+# ── Inputs ──────────────────────────────────────────────────────────────────
+
+input FlowstateFixedEventInput {
+  title:      String!
+  startTime:  String!
+  endTime:    String!
+  daysOfWeek: [Int!]!
+  category:   FlowstateEventCategory!
+}
+
+input FlowstateFlexibleTaskInput {
+  title:             String!
+  durationMinutes:   Int!
+  frequencyPerWeek:  Int!
+  priority:          FlowstateTaskPriority
+  preferredContext:  FlowstatePreferredContext
+  constraints:       String   # JSON string
+}
+
+input FlowstateGenerateScheduleInput {
+  weekIdentifier: String
+}
+
+# ── Response types ───────────────────────────────────────────────────────────
+
+type FlowstateFixedEvent {
+  id:         UUID!
+  userID:     UUID!
+  title:      String!
+  startTime:  String!
+  endTime:    String!
+  daysOfWeek: [Int!]!
+  category:   FlowstateEventCategory!
+  createdAt:  Time!
+  updatedAt:  Time!
+}
+
+type FlowstateFlexibleTask {
+  id:                UUID!
+  userID:            UUID!
+  title:             String!
+  durationMinutes:   Int!
+  frequencyPerWeek:  Int!
+  priority:          FlowstateTaskPriority!
+  preferredContext:  FlowstatePreferredContext!
+  constraints:       String!
+  createdAt:         Time!
+  updatedAt:         Time!
+}
+
+type FlowstateSchedulePayload {
+  weekIdentifier: String!
+  scheduleData:   String!   # JSON string
+}
+
+# ── Enums ────────────────────────────────────────────────────────────────────
+
+enum FlowstateEventCategory {
+  Work
+  School
+  Meeting
+}
+
+enum FlowstateTaskPriority {
+  High
+  Medium
+  Low
+}
+
+enum FlowstatePreferredContext {
+  Morning
+  Evening
+  WorkBreak
+  Weekend
+}

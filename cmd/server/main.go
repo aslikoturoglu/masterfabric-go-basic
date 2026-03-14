@@ -22,11 +22,14 @@ import (
 
 	adminUC "github.com/masterfabric/masterfabric_go_basic/internal/application/admin/usecase"
 	authUC "github.com/masterfabric/masterfabric_go_basic/internal/application/auth/usecase"
+	flowstateUC "github.com/masterfabric/masterfabric_go_basic/internal/application/flowstate/usecase"
 	settingsUC "github.com/masterfabric/masterfabric_go_basic/internal/application/settings/usecase"
 	userUC "github.com/masterfabric/masterfabric_go_basic/internal/application/user/usecase"
 	infraAuth "github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/auth"
+	infraFlowstate "github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/flowstate"
 	"github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/graphql/generated"
 	"github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/graphql/resolver"
+	flowstatePG "github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/postgres/flowstate"
 	iamPG "github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/postgres/iam"
 	"github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/postgres/migrations"
 	settingsPG "github.com/masterfabric/masterfabric_go_basic/internal/infrastructure/postgres/settings"
@@ -93,6 +96,11 @@ func main() {
 	userSettingsRepo := settingsPG.NewUserSettingsRepo(pool)
 	appSettingsRepo := settingsPG.NewAppSettingsRepo(pool)
 
+	fixedEventRepo := flowstatePG.NewFixedEventRepo(pool)
+	flexibleTaskRepo := flowstatePG.NewFlexibleTaskRepo(pool)
+	scheduleRepo := flowstatePG.NewScheduleRepo(pool)
+	flowstateGenerator := infraFlowstate.NewMockGenerator()
+
 	jwtSvc := infraAuth.NewJWTService(cfg.JWT, cacheHandler)
 
 	// ── Resolver (DI root) ──────────────────────────────────────────────────
@@ -117,6 +125,15 @@ func main() {
 		GetUserByIDUC: adminUC.NewGetUserByIDUseCase(userRepo),
 		SuspendUserUC: adminUC.NewSuspendUserUseCase(userRepo),
 		ChangeRoleUC:  adminUC.NewChangeUserRoleUseCase(userRepo),
+
+		ListFixedEventsUC:    flowstateUC.NewListFixedEventsUseCase(fixedEventRepo),
+		CreateFixedEventUC:   flowstateUC.NewCreateFixedEventUseCase(fixedEventRepo),
+		DeleteFixedEventUC:   flowstateUC.NewDeleteFixedEventUseCase(fixedEventRepo),
+		ListFlexibleTasksUC:  flowstateUC.NewListFlexibleTasksUseCase(flexibleTaskRepo),
+		CreateFlexibleTaskUC: flowstateUC.NewCreateFlexibleTaskUseCase(flexibleTaskRepo),
+		DeleteFlexibleTaskUC: flowstateUC.NewDeleteFlexibleTaskUseCase(flexibleTaskRepo),
+		GenerateScheduleUC:   flowstateUC.NewGenerateScheduleUseCase(fixedEventRepo, flexibleTaskRepo, scheduleRepo, userRepo, flowstateGenerator),
+		GetScheduleUC:       flowstateUC.NewGetScheduleUseCase(scheduleRepo),
 	}
 
 	// ── GraphQL server ──────────────────────────────────────────────────────
